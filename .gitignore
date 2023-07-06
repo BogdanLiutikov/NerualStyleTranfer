@@ -1,0 +1,6 @@
+.idea/
+Models/
+venv/
+images/LayersCNN
+images/params
+web/__pycache__/

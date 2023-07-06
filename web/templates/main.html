@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"/>
+    <link rel="stylesheet" href="{{url_for('static', filename='index.css')}}" type="text/css"/>
+    <title>Нейронный перенос стиля</title>
+</head>
+<body>
+<h1>Нейронный перенос стиля</h1>
+<form
+        method="POST"
+        onsubmit="handleSubmit(event)"
+        action="/"
+        enctype="multipart/form-data"
+        class="form"
+>
+    <div class="form_upper-row row">
+        <label for="content" class="row_el">
+            Изображение контента
+            <input type="file" id="content" name="content" accept="image/*" required/>
+        </label>
+        <label for="style" class="row_el">
+            Изображение стиля
+            <input type="file" id="style" name="style" accept="image/*" required/>
+        </label>
+    </div>
+    <label for="iterations" class="form_iterations">
+        Количество итераций: <span id="iterations_count"></span>
+        <input
+                type="range"
+                id="iterations"
+                name="iterations"
+                min="50"
+                max="1000"
+                value="100"
+                step="50"
+        />
+    </label>
+    <label for="style_weight" class="form_style_weight">
+        Уровень переноса: <span id="style_weight_value"></span>
+        <input
+                type="range"
+                id="style_weight"
+                name="style_weight"
+                min="1"
+                max="10"
+                value="3"
+                step="1"
+        />
+    </label>
+    <button type="submit">Запуск</button>
+</form>
+<div class="result">
+    <div id="progress" hidden>Прогресс:</div>
+    <img
+            id="resultImage"
+            src="data:image/jpeg;base64,{{ result }}"
+            alt="Result Image"
+            width="720"
+            hidden
+    />
+</div>
+</body>
+<script
+        src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"
+        integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA=="
+        crossorigin="anonymous"
+></script>
+<script type="text/javascript" charset="utf-8">
+    const value = document.querySelector('#iterations_count');
+    const style_weight_value = document.querySelector('#style_weight_value');
+    const iterationsSlider = document.querySelector('#iterations');
+    const style_weightSlider = document.querySelector('#style_weight');
+    const progress = document.getElementById('progress');
+    const resultImage = document.getElementById('resultImage');
+
+    value.textContent = iterationsSlider.value;
+    iterationsSlider.addEventListener('input', (event) => {
+        value.textContent = event.target.value;
+    });
+
+    style_weight_value.textContent = style_weightSlider.value;
+    style_weightSlider.addEventListener('input', (event) => {
+        style_weight_value.textContent = event.target.value;
+    });
+
+    const submitButton = document.querySelector('button[type="submit"]');
+
+    function handleSubmit(event) {
+        event.preventDefault();
+        const form = document.querySelector('form');
+        const data = new FormData(form);
+
+        submitButton.disabled = true;
+        iterationsSlider.disabled = true;
+        progress.removeAttribute('hidden');
+        progress.textContent = 'Процесс: 0%';
+
+        const startTime = new Date();
+        fetch('/', {
+            method: 'POST',
+            body: data,
+        })
+            .then((data) => data.json())
+            .then((response) => {
+                resultImage.src = `data:image/jpeg;base64,${response}`;
+                submitButton.disabled = false;
+                iterationsSlider.disabled = false;
+                resultImage.removeAttribute('hidden');
+                progress.textContent = `${progress.textContent}     Время: ${Math.floor(
+                    (new Date() - startTime) / 1000
+                )} сек`;
+            });
+    }
+
+    const clamp = (number) => (number > 100 ? 100 : number);
+
+    const socket = io();
+    socket.on('connect', function () {
+        console.log('Connected!');
+        socket.on('update_iterations', (data) => {
+            p = data['iterations'] / value.textContent;
+            // console.log(`${data['iterations']}, ${value.textContent}, ${p * 100}, ${Math.round(p * 100)}`)
+            progress.textContent = `Процесс: ${clamp(Math.round(p * 100))}%`;
+        });
+    });
+</script>
+</html>
